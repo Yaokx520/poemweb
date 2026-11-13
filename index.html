@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>诗镜 · Poetry Lens — 诗词品鉴与修改</title>
+<meta name="description" content="诗镜 Poetry Lens：体裁判定 → 格律提示 → 艺术品评 → 改进建议 的完整诗词品鉴流程，另有体裁学堂与韵脚意象辞典。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ══════════ 顶部固定导航 ══════════ -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#" data-page="home">
+      <span class="brand-seal">镜</span>
+      <span class="brand-text">诗镜 <em>Poetry Lens</em></span>
+    </a>
+    <nav class="mainnav" aria-label="主导航">
+      <a href="#" class="nav-link active" data-page="home">品鉴台</a>
+      <a href="#" class="nav-link" data-page="write">跟我写诗</a>
+      <a href="#" class="nav-link" data-page="ai">AI 创作</a>
+      <a href="#" class="nav-link" data-page="school">体裁学堂</a>
+      <a href="#" class="nav-link" data-page="cipai">词牌查询</a>
+      <a href="#" class="nav-link" data-page="poets">中国诗人</a>
+      <a href="#" class="nav-link" data-page="dict">韵脚意象辞典</a>
+    </nav>
+    <div class="mode-switch" role="group" aria-label="分析模式">
+      <button class="mode-btn active" id="mode-local" title="无需联网，本地规则引擎完成全部分析">本地规则</button>
+      <button class="mode-btn" id="mode-ai" title="AI 增强模式（需接入接口，未接入时自动回落本地规则）">AI 增强</button>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- ══════════ 页面一：品鉴台 ══════════ -->
+<section id="page-home" class="page active">
+
+  <div class="hero">
+    <p class="hero-kicker">体裁判定 · 格律提示 · 艺术品评 · 改进建议</p>
+    <h1 class="hero-title">以镜照诗，<span class="accent">毫发毕现</span></h1>
+    <p class="hero-sub">输入一首诗，诗镜为你完成从体裁、格律到艺术水准的完整品鉴。<br>如一册印制精良的唐诗今注本，朱批落墨，毫厘不爽。</p>
+  </div>
+
+  <!-- 输入区 -->
+  <div class="panel input-panel">
+    <div class="panel-head">
+      <h2><span class="seal-no">题</span>请题诗</h2>
+      <button class="btn ghost" id="btn-sample" aria-haspopup="true">载入示例 ▾</button>
+      <div class="sample-menu" id="sample-menu" hidden></div>
+    </div>
+
+    <div class="input-grid">
+      <div class="field">
+        <label for="in-title">题目 <span class="req">必填</span></label>
+        <input type="text" id="in-title" placeholder="如《登高》" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="in-author">作者 <span class="opt">选填</span></label>
+        <input type="text" id="in-author" placeholder="佚名 / 无名氏可留空" autocomplete="off">
+      </div>
+      <div class="field full">
+        <label for="in-body">正文 <span class="req">必填</span></label>
+        <div class="body-wrap">
+          <textarea id="in-body" rows="10" placeholder="每行一句，自动识别换行与标点……"></textarea>
+          <aside class="stat-strip" id="stat-strip" aria-live="polite">
+            <div class="stat"><b id="st-lines">0</b><span>句数</span></div>
+            <div class="stat"><b id="st-chars">0</b><span>字数</span></div>
+            <div class="stat"><b id="st-avg">0</b><span>平均句长</span></div>
+          </aside>
+        </div>
+      </div>
+      <div class="field">
+        <label>用韵体系</label>
+        <div class="radio-row" id="rhyme-system">
+          <label><input type="radio" name="rhyme" value="pingshui" checked>平水韵</label>
+          <label><input type="radio" name="rhyme" value="xinyun">中华新韵</label>
+          <label><input type="radio" name="rhyme" value="cilin">词林正韵</label>
+          <label><input type="radio" name="rhyme" value="shisan">十三辙</label>
+          <label><input type="radio" name="rhyme" value="western">西方诗歌</label>
+        </div>
+      </div>
+      <div class="field">
+        <label for="in-expect">期望体裁</label>
+        <select id="in-expect">
+          <option value="">请自动判定</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn primary big" id="btn-judge">开始品鉴</button>
+      <button class="btn ghost" id="btn-clear">清空</button>
+      <span class="hint">本地模式下单次品鉴响应 &lt; 1s，无需联网</span>
+    </div>
+  </div>
+
+  <!-- 品鉴报告 -->
+  <div id="report" hidden>
+    <div class="report-toolbar">
+      <h2 class="report-title">品鉴报告 <span class="report-poem" id="report-poem"></span></h2>
+      <button class="btn ghost" id="btn-print">打印 / 导出为笺</button>
+    </div>
+
+    <!-- A 体裁判定 -->
+    <article class="card report-card" id="card-a">
+      <div class="margin-no">壹<span>体裁</span></div>
+      <div class="card-body">
+        <h3>A · 体裁判定</h3>
+        <div id="genre-out"></div>
+      </div>
+    </article>
+
+    <!-- B 格律提示 -->
+    <article class="card report-card" id="card-b">
+      <div class="margin-no">贰<span>格律</span></div>
+      <div class="card-body">
+        <h3>B · 格律提示</h3>
+        <div class="tone-toggle">
+          <button class="tone-btn active" data-tone="both">平仄双色</button>
+          <button class="tone-btn" data-tone="ping">仅标平声</button>
+          <button class="tone-btn" data-tone="ze">仅标仄声</button>
+        </div>
+        <div id="prosody-out"></div>
+      </div>
+    </article>
+
+    <!-- C 艺术水平 -->
+    <article class="card report-card" id="card-c">
+      <div class="margin-no">叁<span>艺品</span></div>
+      <div class="card-body">
+        <h3>C · 艺术水平</h3>
+        <div id="art-out"></div>
+      </div>
+    </article>
+
+    <!-- D 改进与借鉴 -->
+    <article class="card report-card" id="card-d">
+      <div class="margin-no">肆<span>改益</span></div>
+      <div class="card-body">
+        <h3>D · 改进与借鉴</h3>
+        <div id="revise-out"></div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ══════════ 页面二：跟我写诗 ══════════ -->
+<section id="page-write" class="page">
+  <div class="page-head">
+    <h1>跟我写诗</h1>
+    <p>选体裁、定风格、择韵脚——写到一半可要提示，写好一键粘贴到品鉴台。</p>
+  </div>
+  <div class="write-grid">
+    <div class="panel write-config">
+      <h3 class="write-step">壹 · 定体裁</h3>
+      <div class="field">
+        <label for="write-cat">体裁大类</label>
+        <select id="write-cat">
+          <option value="jinti">近体诗（绝句 / 律诗）</option>
+          <option value="ci">词</option>
+          <option value="guti">古体诗（古风 / 乐府）</option>
+          <option value="modern">现代诗</option>
+          <option value="western">西方诗歌（俳句 / 十四行等）</option>
+        </select>
+      </div>
+      <div class="field" id="write-cipai-field" hidden>
+        <label for="write-cipai-key">词牌名（依龙榆生《唐宋词格律》）</label>
+        <input type="text" id="write-cipai-key" placeholder="搜索词牌，如「浣溪沙」或别名「山花子」">
+        <select id="write-cipai"></select>
+        <div id="write-cipai-pu" class="cipai-pu-box"></div>
+      </div>
+      <div class="field">
+        <label for="write-form">具体体裁</label>
+        <select id="write-form"></select>
+      </div>
+
+      <h3 class="write-step">贰 · 定风格</h3>
+      <div class="field">
+        <label for="write-style">想表达的风格</label>
+        <select id="write-style"></select>
+      </div>
+      <div id="write-style-desc" class="note-box"></div>
+
+      <h3 class="write-step">叁 · 择韵脚</h3>
+      <div class="inline-form">
+        <button class="btn" id="btn-rhyme-random">随机推荐</button>
+        <input type="text" id="write-rhyme-char" placeholder="或输入一字取韵，如「空」" maxlength="1">
+        <button class="btn" id="btn-rhyme-lookup">按字取韵</button>
+      </div>
+      <div id="write-rhyme-info"></div>
+    </div>
+
+    <div class="panel write-work">
+      <h3 class="write-step">肆 · 落笔</h3>
+      <div class="field">
+        <label for="write-title">题目</label>
+        <input type="text" id="write-title" placeholder="如《秋夜有怀》" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="write-body">正文 <span class="opt">每行一句</span></label>
+        <textarea id="write-body" rows="14" placeholder="窗前一夜雨，……"></textarea>
+      </div>
+      <div class="action-row">
+        <button class="btn" id="btn-write-hint">给点提示（意象 · 场景 · 手法）</button>
+        <button class="btn primary" id="btn-write-done">写好啦</button>
+      </div>
+      <div id="write-hints" class="hint-box"></div>
+    </div>
+  </div>
+  <div class="panel write-examples">
+    <h3 class="write-step">伍 · 经典例作 <span class="opt">随体裁 / 词牌联动，可作范本</span></h3>
+    <div id="write-examples"></div>
+  </div>
+</section>
+
+<!-- ══════════ 页面三：AI 创作 ══════════ -->
+<section id="page-ai" class="page">
+  <div class="page-head">
+    <h1>AI 创作</h1>
+    <p>生成创作提示词 → 接入智能体 API → 一键产出 2-3 首作品，按主题与意象贴合度评分。</p>
+  </div>
+
+  <!-- 壹 · 生成 Prompt -->
+  <div class="panel">
+    <h3 class="write-step">壹 · 生成创作提示词</h3>
+    <div class="ai-grid">
+      <div class="field">
+        <label for="ai-form">诗词种类</label>
+        <select id="ai-form"></select>
+      </div>
+      <div class="field" id="ai-sub-field">
+        <label for="ai-sub">体裁细类</label>
+        <select id="ai-sub"></select>
+      </div>
+      <div class="field" id="ai-cipai-field" hidden>
+        <label for="ai-cipai">词牌（依龙榆生《唐宋词格律》）</label>
+        <input type="text" id="ai-cipai-key" placeholder="搜词牌，如「浣溪沙」">
+        <select id="ai-cipai"></select>
+      </div>
+      <div class="field">
+        <label for="ai-style">诗词风格</label>
+        <select id="ai-style"></select>
+      </div>
+      <div class="field">
+        <label for="ai-theme">主题</label>
+        <select id="ai-theme"></select>
+      </div>
+      <div class="field full">
+        <label for="ai-theme-custom">自定义主题 <span class="opt">留空则用上方选择</span></label>
+        <input type="text" id="ai-theme-custom" placeholder="如：秋夜登楼怀远">
+      </div>
+      <div class="field full">
+        <label for="ai-imagery">意象（1-5 个，用、或逗号分隔）</label>
+        <input type="text" id="ai-imagery" placeholder="如：明月、孤舟、寒江、西风">
+      </div>
+    </div>
+    <div class="action-row">
+      <button class="btn primary" id="btn-gen-prompt">生成 Prompt</button>
+      <button class="btn" id="btn-copy-prompt">复制</button>
+      <span class="hint">生成后可粘贴到任意 AI 助手，或填入下方 API 创作框</span>
+    </div>
+    <textarea id="ai-prompt-out" rows="16" readonly placeholder="点击「生成 Prompt」后，这里会出现完整的创作提示词。"></textarea>
+  </div>
+
+  <!-- 贰 · API 配置 -->
+  <div class="panel">
+    <h3 class="write-step">贰 · 智能体 API 配置</h3>
+    <div class="ai-grid">
+      <div class="field">
+        <label for="ai-provider">平台</label>
+        <select id="ai-provider"></select>
+      </div>
+      <div class="field">
+        <label for="ai-model">模型</label>
+        <input type="text" id="ai-model" placeholder="如 deepseek-chat">
+      </div>
+      <div class="field full">
+        <label for="ai-baseurl">Base URL（OpenAI 兼容 /chat/completions）</label>
+        <input type="text" id="ai-baseurl" placeholder="https://api.deepseek.com/v1">
+      </div>
+      <div class="field full">
+        <label for="ai-apikey">API Key</label>
+        <input type="password" id="ai-apikey" placeholder="sk-..." autocomplete="off">
+      </div>
+    </div>
+    <div class="action-row">
+      <button class="btn primary" id="btn-save-cfg">保存配置</button>
+      <button class="btn" id="btn-test-cfg">测试连接</button>
+      <button class="btn ghost" id="btn-clear-cfg">清除密钥</button>
+    </div>
+    <div class="note-box" id="ai-cfg-note">密钥仅保存在<b>本机浏览器</b>（localStorage），仅用于直连所选平台的官方接口，不会上传到诗镜服务器。部分平台因 CORS 策略可能无法浏览器直连，届时请改用第一栏生成的 Prompt。</div>
+  </div>
+
+  <!-- 叁 · AI 创作 -->
+  <div class="panel">
+    <h3 class="write-step">叁 · AI 创作</h3>
+    <div class="field">
+      <label for="ai-req">提示词（可直接用上方生成的 Prompt，或自行修改）</label>
+      <textarea id="ai-req" rows="12" placeholder="把生成的 Prompt 粘贴到这里，或写你自己的创作要求……"></textarea>
+    </div>
+    <div class="action-row">
+      <button class="btn primary" id="btn-ai-create">开始创作</button>
+      <button class="btn" id="btn-ai-fill">填入生成的 Prompt</button>
+    </div>
+    <div id="ai-status" class="muted" style="margin-top:12px"></div>
+    <div id="ai-results"></div>
+  </div>
+</section>
+
+<!-- ══════════ 页面四：体裁学堂 ══════════ -->
+<section id="page-school" class="page">
+  <div class="page-head">
+    <h1>体裁学堂</h1>
+    <p>从五绝到维拉内尔——每一种诗体的格律、章法、范例与常见错误。</p>
+  </div>
+  <div class="school-layout">
+    <aside class="school-tree" id="school-tree" aria-label="体裁导航"></aside>
+    <div class="school-content" id="school-content"></div>
+  </div>
+</section>
+
+<!-- ══════════ 页面三：词牌查询 ══════════ -->
+<section id="page-cipai" class="page">
+  <div class="page-head">
+    <h1>词牌查询</h1>
+    <p>依龙榆生《唐宋词格律》（上海古籍出版社 1978 年版）—— 153 词牌、诸体词谱、例词与用韵格。</p>
+  </div>
+  <div class="inline-form wide">
+    <input type="text" id="cipai-key" placeholder="搜索词牌名或别名，如「念奴娇」「百字令」「玉楼春」">
+    <select id="cipai-yunge">
+      <option value="all">全部用韵格</option>
+      <option value="平韵格">平韵格</option>
+      <option value="仄韵格">仄韵格</option>
+      <option value="平仄韵转换格">平仄韵转换格</option>
+      <option value="平仄韵通叶格">平仄韵通叶格</option>
+      <option value="平仄韵错叶格">平仄韵错叶格</option>
+    </select>
+    <button class="btn primary" id="btn-cipai-search">查询</button>
+  </div>
+  <div class="school-layout">
+    <aside class="school-tree" id="cipai-tree" aria-label="词牌导航"></aside>
+    <div class="school-content" id="cipai-content"></div>
+  </div>
+</section>
+
+<!-- ══════════ 页面四：中国诗人 ══════════ -->
+<section id="page-poets" class="page">
+  <div class="page-head">
+    <h1>中国诗人</h1>
+    <p>先秦至近现代共 110 位诗人（近现代含王国维、苏曼殊、柳亚子、戴望舒、艾青、海子、多多、余光中、郑愁予、席慕蓉、汪国真等），按朝代、风格、姓名检索，介绍直接摘自诗人档案。</p>
+  </div>
+  <div class="inline-form wide">
+    <select id="poet-era">
+      <option value="all">全部朝代</option>
+    </select>
+    <select id="poet-kind">
+      <option value="all">全部风格</option>
+    </select>
+    <input type="text" id="poet-name" placeholder="按姓名检索，如「李白」「清照」">
+    <button class="btn primary" id="btn-poet-search">检索</button>
+  </div>
+  <div id="poet-stats" class="muted" style="margin-bottom:18px"></div>
+  <div id="poet-list"></div>
+</section>
+
+<!-- ══════════ 页面五：韵脚意象辞典 ══════════ -->
+<section id="page-dict" class="page">
+  <div class="page-head">
+    <h1>韵脚意象辞典</h1>
+    <p>查一个字、翻一个韵部、觅一个意象，或把两个意象拼成一句诗。</p>
+  </div>
+  <div class="dict-tabs">
+    <button class="tab-btn active" data-tab="rhyme">韵脚查询</button>
+    <button class="tab-btn" data-tab="image">意象查询</button>
+    <button class="tab-btn" data-tab="compose">组合造句</button>
+  </div>
+
+  <div class="tab-pane active" id="tab-rhyme">
+    <div class="dict-row">
+      <div class="dict-col">
+        <h3>字 → 韵部</h3>
+        <div class="inline-form">
+          <input type="text" id="dict-char" placeholder="输入任意汉字，如「空」" maxlength="1">
+          <button class="btn primary" id="btn-char-lookup">查询</button>
+        </div>
+        <div id="char-result" class="dict-result"></div>
+      </div>
+      <div class="dict-col">
+        <h3>韵部 → 常用字</h3>
+        <div class="inline-form">
+          <select id="dict-group"></select>
+          <button class="btn primary" id="btn-group-lookup">查询</button>
+        </div>
+        <div id="group-result" class="dict-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane" id="tab-image">
+    <div class="inline-form wide">
+      <select id="image-cat"></select>
+      <input type="text" id="image-key" placeholder="搜索意象，如「孤舟」「杜鹃」">
+      <button class="btn primary" id="btn-image-lookup">查询</button>
+    </div>
+    <div id="image-result" class="dict-result"></div>
+  </div>
+
+  <div class="tab-pane" id="tab-compose">
+    <h3>意象组合 · 造句练习</h3>
+    <p class="muted">选择组合方法，系统给出两个意象，补写一句诗，即刻得到格律与意象契合度反馈。</p>
+    <div class="compose-methods" id="compose-methods"></div>
+    <div class="compose-stage" id="compose-stage"></div>
+  </div>
+</section>
+</main>
+
+<!-- ══════════ 页脚 ══════════ -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-col">
+      <h4>用韵体系说明</h4>
+      <ul>
+        <li><b>平水韵</b>：宋金以降诗韵正统，106 部（平声 30、上声 29、去声 30、入声 17），近体诗格律以此为准。</li>
+        <li><b>中华新韵</b>：以今音为据的 14 韵部，无入声，便于今人创作；与平水韵结论不一致处报告中加粗提示。</li>
+        <li><b>词林正韵</b>：清·戈载编，19 部（平上去 14 部、入声 5 部），填词用韵依据。</li>
+        <li><b>十三辙</b>：曲艺与歌词的押韵辙口，13 辙，宽松灵活。</li>
+        <li><b>西方诗歌</b>：按尾韵（end rhyme）与音步（meter）分析十四行诗、俳句、民谣体等。</li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>关于诗镜</h4>
+      <p class="muted">诗镜的格律判断为规则引擎结果，平仄以《平水韵》常用字表为准，多音字、未收录字一律标注「请人工确认」。文学品评为骨架式建议，供创作参考。</p>
+      <p class="muted"><b>免责声明</b>：本工具仅供学习与创作参考，不构成权威定论；引用古籍与范例作品版权归原作者所有。评级分数由规则模型生成，仅作练习标尺。</p>
+    </div>
+    <div class="footer-col">
+      <h4>体裁判定速查</h4>
+      <ul class="quick">
+        <li>4×5 → 五绝 · 4×7 → 七绝</li>
+        <li>8×5 → 五律 · 8×7 → 七律</li>
+        <li>10 句以上 5/7 言 → 排律</li>
+        <li>长短参差 → 词 / 曲 / 乐府</li>
+        <li>14 行 ABAB…GG → 莎翁十四行</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-meta">
+      <span class="copy">© 2026 秋轩无墨</span>
+      <a href="license.html">版权与许可</a>
+      <a href="https://github.com/Yaokx520/poemweb/" target="_blank" rel="noopener">GitHub</a>
+      <img class="wechat-logo" src="images/logo-sm.png" alt="秋轩无墨 Logo" width="26" height="26">
+      <button type="button" class="wechat-entry" id="btn-wechat" aria-haspopup="dialog">关注公众号</button>
+    </div>
+    <div class="footer-brand">诗镜 · Poetry Lens</div>
+  </div>
+</footer>
+
+<!-- 公众号弹层 -->
+<div class="wechat-modal" id="wechat-modal" hidden role="dialog" aria-modal="true" aria-labelledby="wechat-modal-title">
+  <div class="wechat-backdrop" data-close></div>
+  <div class="wechat-panel" role="document">
+    <button type="button" class="wechat-close" id="wechat-close" aria-label="关闭弹层">×</button>
+    <img class="wechat-avatar" src="images/logo.png" alt="秋轩无墨 Logo">
+    <h3 id="wechat-modal-title">关注公众号</h3>
+    <img class="wechat-qrcode" src="images/qrcode.jpg" alt="微信公众号「秋轩诗抄」二维码">
+    <div class="wechat-name-row">
+      <span class="wechat-name-label">公众号名称</span>
+      <code class="wechat-name" id="wechat-name">秋轩诗抄</code>
+      <button type="button" class="btn mini" id="btn-copy-wechat">复制</button>
+    </div>
+    <p class="muted">微信「扫一扫」上方二维码关注；或复制名称，在微信中搜索公众号。</p>
+  </div>
+</div>
+
+<!-- 打印用笺 -->
+<div id="letter-sheet" hidden></div>
+
+<script src="data-prosody.js"></script>
+<script src="data-content.js"></script>
+<script src="data-cipai.js"></script>
+<script src="data-poets.js"></script>
+<script src="data-ai.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
