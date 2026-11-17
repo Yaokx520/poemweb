@@ -1285,6 +1285,170 @@ function printLetter() {
   $('#btn-close-letter').onclick = () => { sheet.classList.remove('printing'); sheet.hidden = true; };
 }
 
+/* ───────────────────────── 9.5 导出图片（移动端可用） ───────────────────────── */
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) {} a.remove(); }, 1500);
+}
+
+function drawJian(ctx, W, PAD, R) {
+  const SERIF = '"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif';
+  const INK = '#211C18', INK2 = '#6B6157', CINNABAR = '#A8352A', STONE = '#4C6572';
+  const RULE2 = '#D4C7AE';
+  const contentW = W - PAD * 2, center = PAD + contentW / 2;
+  let y = PAD + 6;
+
+  function wrap(text, size, maxW) {
+    ctx.font = `${size}px ${SERIF}`;
+    const out = [];
+    for (const para of String(text == null ? '' : text).split('\n')) {
+      let line = '';
+      for (const ch of para) {
+        if (line && ctx.measureText(line + ch).width > maxW) { out.push(line); line = ch; }
+        else line += ch;
+      }
+      out.push(line);
+    }
+    return out;
+  }
+  function rr(x, yy, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, yy);
+    ctx.arcTo(x + w, yy, x + w, yy + h, r);
+    ctx.arcTo(x + w, yy + h, x, yy + h, r);
+    ctx.arcTo(x, yy + h, x, yy, r);
+    ctx.arcTo(x, yy, x + w, yy, r);
+    ctx.closePath();
+  }
+  function drawSection(label, val, yy) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = CINNABAR; ctx.font = `25px ${SERIF}`;
+    ctx.fillText(label, PAD, yy + 25); yy += 40;
+    wrap(val, 27, contentW).forEach(w => {
+      ctx.fillStyle = INK; ctx.font = `27px ${SERIF}`;
+      ctx.fillText(w, PAD + 24, yy + 27); yy += 46;
+    });
+    return yy + 18;
+  }
+
+  // 眉标
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = CINNABAR; ctx.font = `26px ${SERIF}`;
+  ctx.fillText('诗 镜 · 品 鉴 笺', center, y + 22); y += 52;
+  // 题目 / 作者
+  ctx.fillStyle = INK; ctx.font = `bold 50px ${SERIF}`;
+  ctx.fillText(`《${R.title}》`, center, y + 50); y += 74;
+  if (R.author) {
+    ctx.fillStyle = INK2; ctx.font = `25px ${SERIF}`;
+    ctx.fillText(`—— ${R.author}`, center, y + 25); y += 48;
+  }
+  // 正文
+  y += 12;
+  R.body.split('\n').filter(s => s.trim()).forEach(l => {
+    wrap(l, 35, contentW).forEach(w => {
+      ctx.fillStyle = INK; ctx.font = `35px ${SERIF}`;
+      ctx.fillText(w, center, y + 35); y += 68;
+    });
+  });
+  // 分隔线
+  y += 10;
+  ctx.strokeStyle = RULE2; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
+  y += 40;
+  // 壹 体裁 / 贰 格律
+  const g = R.genre;
+  y = drawSection('壹 · 体裁', `${g.primary}（置信度 ${g.confidence}）`, y);
+  const pros = R.prosody && R.prosody.patternName
+    ? `${R.prosody.patternName} · 合律率 ${Math.round((R.prosody.conformRate || 0) * 100)}%`
+    : '自由体，无固定平仄谱';
+  y = drawSection('贰 · 格律', pros, y);
+  // 叁 评级
+  ctx.textAlign = 'left';
+  ctx.fillStyle = CINNABAR; ctx.font = `25px ${SERIF}`;
+  ctx.fillText('叁 · 评级', PAD, y + 25); y += 46;
+  const art = R.art;
+  const seal = 128, sx = PAD + 8, sy = y;
+  rr(sx, sy, seal, seal, 12); ctx.fillStyle = CINNABAR; ctx.fill();
+  ctx.fillStyle = '#F6F1E7'; ctx.textAlign = 'center';
+  ctx.font = `bold 52px ${SERIF}`; ctx.fillText(art.grade, sx + seal / 2, sy + 64);
+  ctx.font = `22px ${SERIF}`; ctx.fillText(`${art.total}/100`, sx + seal / 2, sy + 100);
+  const dims = [['主题立意', art.dims.theme], ['修辞手法', art.dims.rhetoric], ['意象营造', art.dims.imagery], ['技法章法', art.dims.craft], ['风格匹配', art.dims.style]];
+  const bx = sx + seal + 36, barW = W - PAD - bx - 110;
+  let by = y + 14;
+  dims.forEach(d => {
+    ctx.textAlign = 'left'; ctx.fillStyle = INK2; ctx.font = `22px ${SERIF}`;
+    ctx.fillText(d[0], bx, by + 22);
+    const trackX = bx + 150, trackY = by + 6, trackH = 16;
+    rr(trackX, trackY, barW, trackH, 8); ctx.fillStyle = '#E7DECB'; ctx.fill();
+    rr(trackX, trackY, Math.max(6, barW * d[1] / 20), trackH, 8); ctx.fillStyle = STONE; ctx.fill();
+    ctx.fillStyle = INK2; ctx.font = `20px ${SERIF}`; ctx.fillText(`${d[1]}/20`, trackX + barW + 14, by + 22);
+    by += 38;
+  });
+  y = Math.max(y + seal + 16, by + 6);
+  if (art.highlight) {
+    wrap('「' + art.highlight + '」', 25, contentW).forEach(w => {
+      ctx.fillStyle = STONE; ctx.font = `italic 25px ${SERIF}`;
+      ctx.fillText(w, PAD, y + 25); y += 42;
+    });
+  }
+  y += 14;
+  // 肆 改进
+  ctx.textAlign = 'left';
+  ctx.fillStyle = CINNABAR; ctx.font = `25px ${SERIF}`;
+  ctx.fillText('肆 · 改进', PAD, y + 25); y += 44;
+  (R.rev.improve || []).slice(0, 3).forEach(it => {
+    wrap(`· ${it.type}：${it.suggestion}`, 25, contentW).forEach(w => {
+      ctx.fillStyle = INK; ctx.font = `25px ${SERIF}`;
+      ctx.fillText(w, PAD + 12, y + 25); y += 40;
+    });
+    y += 6;
+  });
+  // 落款
+  y += 12;
+  ctx.strokeStyle = RULE2; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
+  y += 44;
+  ctx.textAlign = 'center'; ctx.fillStyle = INK2; ctx.font = `24px ${SERIF}`;
+  ctx.fillText('诗镜 · Poetry Lens　谨识', center, y + 24);
+  return y + 40;
+}
+
+function exportReportImage() {
+  if (!lastReport) { toast('请先点击「开始品鉴」生成报告'); return; }
+  const R = lastReport;
+  const W = 1080, PAD = 84;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = 2000;
+  let ctx = canvas.getContext('2d');
+  const bottom = drawJian(ctx, W, PAD, R); // 测量总高
+  const H = Math.ceil(bottom + PAD);
+  canvas.width = W; canvas.height = H;
+  ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#F6F1E7'; ctx.fillRect(0, 0, W, H); // 纸底
+  drawJian(ctx, W, PAD, R); // 内容
+  // 双线边框 + 朱砂角标
+  ctx.strokeStyle = '#D4C7AE'; ctx.lineWidth = 2; ctx.strokeRect(28, 28, W - 56, H - 56);
+  ctx.strokeStyle = '#E2D9C8'; ctx.lineWidth = 1; ctx.strokeRect(40, 40, W - 80, H - 80);
+  ctx.fillStyle = '#A8352A'; ctx.fillRect(28, 28, 8, 66); ctx.fillRect(28, 28, 66, 8);
+
+  canvas.toBlob(blob => {
+    const fname = `诗镜_品鉴笺_${R.title}.png`;
+    let file = null;
+    try { file = new File([blob], fname, { type: 'image/png' }); } catch (e) { file = null; }
+    if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: '诗镜 · 品鉴笺', text: `《${R.title}》品鉴笺` })
+        .then(() => toast('已导出 / 分享图片'))
+        .catch(() => { downloadBlob(blob, fname); toast('已导出图片'); });
+    } else {
+      downloadBlob(blob, fname);
+      toast('已导出图片（可保存到相册）');
+    }
+  }, 'image/png');
+}
+
 /* ───────────────────────── 10. 体裁学堂 ───────────────────────── */
 function renderSchoolTree() {
   const tree = $('#school-tree');
@@ -2207,6 +2371,7 @@ function init() {
     $('#report').hidden = true; updateStats();
   };
   $('#btn-print').onclick = printLetter;
+  $('#btn-export-img').onclick = exportReportImage;
 
   // 平/仄双色切换
   $$('.tone-btn').forEach(b => b.addEventListener('click', () => {
